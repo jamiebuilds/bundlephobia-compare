@@ -5,10 +5,34 @@ import uniq from "lodash.uniq"
 import { render } from "react-dom"
 import prettyBytes from "pretty-bytes"
 
-function App() {
-	let [input, setInput] = useState(
-		"react-jeff, redux-form, react-final-form+final-form, formik",
+const FAKE_SEP = "___FAKE_SEP___"
+
+function getPkgsFromUrl() {
+	let found = window.location.search
+		.replace(/^\?/, "")
+		.split("&")
+		.map(part => part.split("="))
+		.find(part => part[0] === "pkgs")
+
+	if (found) return found[1]
+	return null
+}
+
+let INITIAL_QUERY = getPkgsFromUrl() || "react+react-dom,preact,inferno"
+
+function toItems(input: string) {
+	return uniq(input.split(/[ ,]+/).filter(item => item !== "")).map(item =>
+		item.split("+"),
 	)
+}
+
+function stringifyItems(items: string[][]) {
+	return items.map(pkgs => pkgs.join("+")).join(", ")
+}
+
+function App() {
+	let [input, setInput] = useState(stringifyItems(toItems(INITIAL_QUERY)))
+
 	let [responses, setResponses] = useState<{ [key: string]: any }>({})
 
 	let handleChangeInput = useCallback(
@@ -18,11 +42,17 @@ function App() {
 		[],
 	)
 
-	let items = useMemo(() => {
-		return uniq(input.split(/[ ,]+/).filter(item => item !== "")).map(item =>
-			item.split("+"),
+	let items = useMemo(() => toItems(input), [input])
+
+	useEffect(() => {
+		window.history.replaceState(
+			{},
+			"",
+			window.location.pathname +
+				"?pkgs=" +
+				items.map(pkgs => pkgs.join("+")).join(","),
 		)
-	}, [input])
+	}, [items])
 
 	useEffect(() => {
 		let controller = new AbortController()
